@@ -151,6 +151,8 @@ const store = {
   set(k, v){ try { localStorage.setItem(KEY + k, JSON.stringify(v)); } catch {} },
   del(k){ try { localStorage.removeItem(KEY + k); } catch {} }
 };
+let DEV = store.get('dev');
+if (!DEV) { DEV = Math.random().toString(36).slice(2, 8); store.set('dev', DEV); }
 function save(){ if (!S) return; store.set('room:' + S.r, S); store.set('last', S.r); }
 
 /* ---------- encode / decode (link carries the whole board) ---------- */
@@ -162,7 +164,8 @@ function unb64u(s){ s = s.replace(/-/g,'+').replace(/_/g,'/'); while (s.length %
 
 function encode(st){
   const w = Object.entries(st.w).map(([i, v]) => [+i, v.w, v.b, v.t]);
-  const json = JSON.stringify({ n: st.n, w });
+  const c = Object.entries(st.c || {}).map(([i, v]) => [+i, v.d, v.t]);
+  const json = JSON.stringify({ n: st.n, w, c });
   return st.r + '.' + b64u(xor(te.encode(json), keyFor(st.r)));
 }
 function decode(code){
@@ -174,7 +177,9 @@ function decode(code){
     if (!Array.isArray(obj.n)) return null;
     const w = {};
     (obj.w || []).forEach(([i, word, b, t]) => { if (typeof word === 'string' && word.trim()) w[i] = { w: word, b, t }; });
-    return { r, n: obj.n.map(String), w };
+    const c = {};
+    (obj.c || []).forEach(([i, d, t]) => { if (d) c[i] = { d, t }; });
+    return { r, n: obj.n.map(String), w, c };
   } catch { return null; }
 }
 function linkFor(st){ return location.origin + location.pathname + '#g=' + encode(st); }
@@ -189,7 +194,12 @@ function findCodes(text){
 /* merge incoming board into local. returns number of changed words */
 function merge(inc){
   let cur = store.get('room:' + inc.r);
-  if (!cur) cur = { r: inc.r, n: inc.n, w: {}, me: null, outs: {} };
+  if (!cur) cur = { r: inc.r, n: inc.n, w: {}, c: {}, me: null, outs: {} };
+  if (!cur.c) cur.c = {};
+  for (const [i, v] of Object.entries(inc.c || {})) {
+    const mine = cur.c[i];
+    if (!mine || v.t < mine.t) cur.c[i] = v; // 먼저 고른 휴대폰이 그 이름을 가짐
+  }
   if (!cur.n || !cur.n.length) cur.n = inc.n;
   let changed = 0;
   for (const [i, v] of Object.entries(inc.w)) {
@@ -221,11 +231,23 @@ scrim.addEventListener('click', closeSheet);
 
 const setCount = () => S.n.filter((_, i) => S.w[i]).length;
 
+const takenBy = i => S.c && S.c[i] && S.c[i].d !== DEV;
+function claim(i){
+  if (!S.c) S.c = {};
+  if (!S.c[i] || S.c[i].d !== DEV) S.c[i] = { d: DEV, t: S.c[i] ? Math.max(Date.now(), S.c[i].t + 1) : Date.now() };
+  S.me = i; save();
+}
+function unclaimAndPick(){
+  if (S.me != null && S.c && S.c[S.me] && S.c[S.me].d === DEV) delete S.c[S.me];
+  S.me = null; save(); render();
+}
+
 /* ---------- share ---------- */
 async function share(){
   const url = linkFor(S);
   const who = S.me != null ? S.n[S.me] : '';
-  const text = `금지어 게임 단어판 ${setCount()}/${S.n.length}${who ? ` (${who} 업데이트)` : ''}\n링크를 누르면 내 휴대폰에 단어가 합쳐져요.`;
+  const done = setCount() === S.n.length;
+  const text = `금지어 게임 단어판 ${done ? '완성 ' : ''}${setCount()}/${S.n.length}${who ? ` (${who} 공유)` : ''}\n링크를 누르면 내 휴대폰에 단어가 합쳐져요.`;
   if (navigator.share && /^https?:/.test(location.protocol)) {
     try { await navigator.share({ title: '금지어 게임', text, url }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }
@@ -278,13 +300,14 @@ function renderHome(){
           <li><span>내 담당인 다음 사람 금지어를 넣고<br>단어 공유로 단톡방에 올려요.</span></li>
           <li><span>남이 올린 링크를 하나씩 누르면<br>단어판이 내 휴대폰에 합쳐져요.</span></li>
         </ol>
+        <p class="t-foot mt4">링크는 늘 같은 앱에서 열어 주세요.<br>카톡에서 열었다면 끝까지 카톡에서 열면 돼요.</p>
       </section>`;
     app.querySelector('#minus').onclick = () => { if (count > 3) { count--; draw(); } };
     app.querySelector('#plus').onclick = () => { if (count < 10) { count++; draw(); } };
     app.querySelector('#create').onclick = () => {
       const names = [...app.querySelectorAll('.names input')].map((i, k) => i.value.trim() || `이름 ${k + 1}`);
       if (new Set(names).size !== names.length) return toast('이름이 겹쳐요. 다르게 넣어 주세요');
-      S = { r: rid(), n: names, w: {}, me: null, outs: {} };
+      S = { r: rid(), n: names, w: {}, c: {}, me: null, outs: {} };
       save(); render();
       setTimeout(() => openSheet(`
         <h2 class="t-title2">단톡방에 링크 올리기</h2>
@@ -308,17 +331,17 @@ function renderPick(){
       <p class="t-sub mt3">내 이름을 고르면 내 금지어는<br>이 휴대폰에서 끝까지 가려져요.</p>
     </header>
     <div class="pick mt8">
-      ${S.n.map((nm, i) => `<button class="btn btn-ghost block" data-i="${i}">${esc(nm)}</button>`).join('')}
+      ${S.n.map((nm, i) => `<button class="btn btn-ghost block" data-i="${i}" style="justify-content:space-between">${esc(nm)}${takenBy(i) ? '<span class="pill">다른 휴대폰이 고름</span>' : ''}</button>`).join('')}
     </div>
     <button class="btn btn-text block mt6" id="home">다른 게임 시작</button>`;
   app.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
     const i = +b.dataset.i;
     openSheet(`
       <h2 class="t-title2">${esc(S.n[i])} 님 맞나요?</h2>
-      <p class="t-sub mt3">다른 사람 이름을 고르면<br>내 금지어가 보일 수 있어요.</p>
+      <p class="t-sub mt3">${takenBy(i) ? '다른 휴대폰이 이미 고른 이름이에요.<br>같은 사람이 휴대폰을 바꾼 경우만 골라 주세요.' : '다른 사람 이름을 고르면<br>내 금지어가 보일 수 있어요.'}</p>
       <button class="btn btn-primary block mt6" id="ok">네, ${esc(S.n[i])}예요</button>
       <button class="btn btn-text block mt2" id="no">다시 선택</button>`, bd => {
-        bd.querySelector('#ok').onclick = () => { S.me = i; save(); closeSheet(); render(); };
+        bd.querySelector('#ok').onclick = () => { claim(i); closeSheet(); render(); };
         bd.querySelector('#no').onclick = closeSheet;
       });
   });
@@ -351,6 +374,15 @@ function renderBoard(){
       </article>`;
   };
   const myV = S.w[me];
+  const conflict = takenBy(me);
+  const emptyCount = n - total;
+  const guide = conflict
+    ? `<section class="card me mt6"><p class="t-callout">다른 휴대폰도 ${esc(S.n[me])} 님을 먼저 골랐어요.<br>내 이름이 맞는지 확인해 주세요.</p><button class="btn btn-primary block mt4" id="repick">내 이름 다시 선택</button></section>`
+    : !S.w[mine]
+      ? `<section class="card me mt6"><p class="t-callout">내 담당 ${esc(S.n[mine])} 님 금지어를 넣고<br>단어 공유로 단톡방에 올려 주세요.</p></section>`
+      : emptyCount
+        ? `<section class="card me mt6"><p class="t-callout">아직 ${emptyCount}명이 비어 있어요.<br>단톡방 링크를 누르면 단어가 합쳐져요.</p></section>`
+        : `<section class="card me mt6"><p class="t-callout">${n}명 모두 정해졌어요.<br>이제 대화를 시작하면 돼요.</p></section>`;
   app.innerHTML = `
     <header class="row between">
       <div>
@@ -359,7 +391,8 @@ function renderBoard(){
       </div>
       <button class="btn-icon btn" id="menu" aria-label="메뉴">${ICON.more}</button>
     </header>
-    <article class="card me mt6">
+    ${guide}
+    <article class="card me mt3">
       <div class="row between"><span class="name">${esc(S.n[me])} (나)</span><span class="pill${myV ? ' on' : ''}">${myV ? '정해짐' : '기다리는 중'}</span></div>
       <div class="hidden-word mt3">${ICON.eyeOff}<p class="word">비밀</p></div>
       <p class="t-foot mt3">${myV ? '내 금지어는 다른 사람 화면에만 보여요.' : '누가 내 금지어를 넣으면 단어판이 바뀌어요.'}</p>
@@ -373,6 +406,7 @@ function renderBoard(){
   app.querySelector('#share').onclick = share;
   app.querySelector('#paste').onclick = openPaste;
   app.querySelector('#menu').onclick = openMenu;
+  const rp = app.querySelector('#repick'); if (rp) rp.onclick = unclaimAndPick;
   app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openEdit(+b.dataset.edit));
   app.querySelectorAll('[data-out]').forEach(b => b.onclick = () => { const i = +b.dataset.out; S.outs[i] = (S.outs[i] || 0) + 1; save(); renderBoard(); });
   app.querySelectorAll('[data-out-minus]').forEach(b => b.onclick = () => { const i = +b.dataset.outMinus; S.outs[i] = Math.max(0, (S.outs[i] || 0) - 1); save(); renderBoard(); });
@@ -455,7 +489,7 @@ function openMenu(){
     <button class="btn btn-text block mt2" id="close">닫기</button>`, b => {
       b.querySelector('#close').onclick = closeSheet;
       b.querySelector('#link').onclick = async () => { await share(); closeSheet(); };
-      b.querySelector('#who').onclick = () => confirmSheet('이름을 다시 고를까요?', '다른 이름을 고르면 그 사람 금지어는 가려지고<br>지금 내 금지어가 보이게 돼요.', '다시 선택', () => { S.me = null; save(); render(); });
+      b.querySelector('#who').onclick = () => confirmSheet('이름을 다시 고를까요?', '다른 이름을 고르면 그 사람 금지어는 가려지고<br>지금 내 금지어가 보이게 돼요.', '다시 선택', unclaimAndPick);
       b.querySelector('#new').onclick = () => confirmSheet('새 게임을 시작할까요?', '이 휴대폰의 지금 단어판은 지워져요.', '새 게임', newGame);
       b.querySelector('#reveal').onclick = () => confirmSheet('게임이 끝났나요?', '확인을 누르면 내 금지어가 이 화면에 나와요.', '내 금지어 확인', () => {
         const v = S.w[S.me];
