@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="description" content="내 금지어는 나만 모르는 금지어 게임">
+<title>금지어 게임</title>
+<style>
+:root{
+  --bg:#000;
+  --surface:#141414;
+  --surface-2:#1e1e1e;
+  --surface-3:#2a2a2a;
+  --text:#fff;
+  --text-2:rgba(255,255,255,.64);
+  --text-3:rgba(255,255,255,.42);
+  --primary:#fff;
+  --on-primary:#000;
+  --scrim:rgba(0,0,0,.72);
+  --r-s:8px; --r-m:12px; --r-l:16px; --r-xl:24px; --r-full:999px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px; --s12:48px;
+  --font:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"Noto Sans KR",sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --dur:240ms;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased;text-size-adjust:100%}
+body{min-height:100dvh;overflow-x:hidden;word-break:keep-all;overflow-wrap:break-word}
+button,input,textarea{font:inherit;color:inherit;border:0;outline:0;background:none}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.field:focus-visible{outline:0}
+
+.app{max-width:430px;margin:0 auto;padding:calc(var(--s4) + env(safe-area-inset-top)) var(--s4) calc(120px + env(safe-area-inset-bottom))}
+
+/* type */
+.t-large{font-size:2.125rem;font-weight:700;line-height:1.15;letter-spacing:-.02em}
+.t-title2{font-size:1.375rem;font-weight:700;line-height:1.25;letter-spacing:-.015em}
+.t-title3{font-size:1.25rem;font-weight:600;line-height:1.3;letter-spacing:-.01em}
+.t-body{font-size:1.0625rem;font-weight:400;line-height:1.55}
+.t-callout{font-size:1rem;line-height:1.5}
+.t-sub{font-size:.9375rem;line-height:1.45;color:var(--text-2)}
+.t-foot{font-size:.8125rem;line-height:1.4;color:var(--text-2)}
+.t-cap{font-size:.75rem;line-height:1.35;letter-spacing:.01em;color:var(--text-3)}
+.word{font-size:2rem;font-weight:800;line-height:1.1;letter-spacing:-.025em;word-break:keep-all;overflow-wrap:anywhere}
+
+/* layout */
+.stack>*+*{margin-top:var(--s3)}
+.row{display:flex;align-items:center;gap:var(--s2)}
+.between{justify-content:space-between}
+.mt2{margin-top:var(--s2)}.mt3{margin-top:var(--s3)}.mt4{margin-top:var(--s4)}.mt6{margin-top:var(--s6)}.mt8{margin-top:var(--s8)}
+
+/* surfaces */
+.card{background:var(--surface);border-radius:var(--r-l);padding:var(--s5)}
+.card.me{background:var(--surface-2)}
+.pill{display:inline-flex;align-items:center;gap:var(--s1);height:24px;padding:0 var(--s2);border-radius:var(--r-full);background:var(--surface-3);font-size:.75rem;font-weight:600;color:var(--text-2)}
+.pill.on{background:var(--primary);color:var(--on-primary)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);min-height:52px;padding:0 var(--s5);border-radius:var(--r-m);font-size:1.0625rem;font-weight:600;transition:transform 120ms var(--ease),opacity 120ms var(--ease)}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--primary);color:var(--on-primary)}
+.btn-ghost{background:var(--surface-2);color:var(--text)}
+.btn-text{min-height:44px;padding:0 var(--s2);color:var(--text-2);font-weight:500}
+.btn-sm{min-height:44px;padding:0 var(--s4);font-size:.9375rem;border-radius:var(--r-m)}
+.btn-icon{width:44px;height:44px;min-height:44px;padding:0;border-radius:var(--r-m);background:var(--surface-2)}
+.block{width:100%}
+.btn[disabled]{opacity:.35;pointer-events:none}
+svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* inputs */
+.field{width:100%;min-height:52px;padding:0 var(--s4);border-radius:var(--r-m);background:var(--surface-2);font-size:1.0625rem}
+.field::placeholder{color:var(--text-3)}
+textarea.field{min-height:120px;padding:var(--s3) var(--s4);resize:none;line-height:1.5}
+.field:focus{background:var(--surface-3)}
+
+/* name list */
+.names{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+.pick{display:grid;gap:var(--s2)}
+.pick .btn{justify-content:flex-start;font-size:1.25rem;min-height:60px}
+
+/* game cards */
+.grid{display:grid;gap:var(--s3)}
+.name{font-size:.9375rem;font-weight:600;color:var(--text-2)}
+.hidden-word{display:flex;align-items:center;gap:var(--s3);color:var(--text-3)}
+.hidden-word .word{color:var(--text-3)}
+.empty-word{font-size:1.25rem;font-weight:600;color:var(--text-3)}
+.out-n{min-width:24px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* bottom bar */
+.bar{position:fixed;left:0;right:0;bottom:0;padding:var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 70%,rgba(0,0,0,0))}
+.bar-in{max-width:398px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:var(--scrim);opacity:0;pointer-events:none;transition:opacity var(--dur) var(--ease);z-index:10}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;transform:translateY(100%);transition:transform var(--dur) var(--ease)}
+.sheet.open{transform:translateY(0)}
+.sheet-in{max-width:430px;margin:0 auto;background:var(--surface);border-radius:var(--r-xl) var(--r-xl) 0 0;padding:var(--s3) var(--s5) calc(var(--s6) + env(safe-area-inset-bottom))}
+.grab{width:36px;height:5px;border-radius:var(--r-full);background:var(--surface-3);margin:0 auto var(--s5)}
+.reveal{background:var(--primary);color:var(--on-primary);border-radius:var(--r-l);padding:var(--s8) var(--s5);text-align:center}
+
+/* toast */
+.toast{position:fixed;left:50%;top:calc(var(--s4) + env(safe-area-inset-top));transform:translate(-50%,-16px);opacity:0;z-index:20;max-width:calc(100% - 32px);padding:var(--s3) var(--s4);border-radius:var(--r-m);background:var(--primary);color:var(--on-primary);font-size:.9375rem;font-weight:600;transition:transform var(--dur) var(--ease),opacity var(--dur) var(--ease);pointer-events:none;text-align:center}
+.toast.show{transform:translate(-50%,0);opacity:1}
+
+.steps{counter-reset:s;display:grid;gap:var(--s3)}
+.steps li{list-style:none;display:flex;gap:var(--s3);align-items:flex-start}
+.steps li::before{counter-increment:s;content:counter(s);flex:none;width:24px;height:24px;border-radius:var(--r-full);background:var(--surface-3);display:grid;place-items:center;font-size:.8125rem;font-weight:700}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (prefers-contrast:more){:root{--text-2:rgba(255,255,255,.85);--text-3:rgba(255,255,255,.7);--surface-3:#444}}
+@media (prefers-reduced-transparency:reduce){:root{--scrim:#000}.bar{background:var(--bg)}}
+</style>
+</head>
+<body>
+<main class="app" id="app"></main>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="sheet-in"><div class="grab"></div><div id="sheetBody"></div></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const KEY = 'fw:';
+const app = document.getElementById('app');
+const sheet = document.getElementById('sheet');
+const scrim = document.getElementById('scrim');
+const sheetBody = document.getElementById('sheetBody');
+const toastEl = document.getElementById('toast');
+
+const ICON = {
+  share:'<svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>',
+  inbox:'<svg viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
+  eyeOff:'<svg viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M2 2l20 20"/></svg>',
+  more:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
+  plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  minus:'<svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>',
+  pen:'<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  paste:'<svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>'
+};
+
+/* ---------- state ---------- */
+let S = null; // {r, n:[names], w:{idx:{w,b,t}}, me, outs:{idx:n}}
+
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(KEY + k)); } catch { return null; } },
+  set(k, v){ try { localStorage.setItem(KEY + k, JSON.stringify(v)); } catch {} },
+  del(k){ try { localStorage.removeItem(KEY + k); } catch {} }
+};
+function save(){ if (!S) return; store.set('room:' + S.r, S); store.set('last', S.r); }
+
+/* ---------- encode / decode (link carries the whole board) ---------- */
+const te = new TextEncoder(), td = new TextDecoder();
+function keyFor(r){ return te.encode('fw-salt-2026-' + r + '-mask'); }
+function xor(bytes, key){ const o = new Uint8Array(bytes.length); for (let i = 0; i < bytes.length; i++) o[i] = bytes[i] ^ key[i % key.length] ^ ((i * 31) & 255); return o; }
+function b64u(bytes){ let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function unb64u(s){ s = s.replace(/-/g,'+').replace(/_/g,'/'); while (s.length % 4) s += '='; const bin = atob(s); const o = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i); return o; }
+
+function encode(st){
+  const w = Object.entries(st.w).map(([i, v]) => [+i, v.w, v.b, v.t]);
+  const json = JSON.stringify({ n: st.n, w });
+  return st.r + '.' + b64u(xor(te.encode(json), keyFor(st.r)));
+}
+function decode(code){
+  const dot = code.indexOf('.');
+  if (dot !== 6) return null;
+  const r = code.slice(0, 6);
+  try {
+    const obj = JSON.parse(td.decode(xor(unb64u(code.slice(7)), keyFor(r))));
+    if (!Array.isArray(obj.n)) return null;
+    const w = {};
+    (obj.w || []).forEach(([i, word, b, t]) => { if (typeof word === 'string' && word.trim()) w[i] = { w: word, b, t }; });
+    return { r, n: obj.n.map(String), w };
+  } catch { return null; }
+}
+function linkFor(st){ return location.origin + location.pathname + '#g=' + encode(st); }
+
+function findCodes(text){
+  const out = new Set();
+  const re = /(?:#g=)?([A-Za-z0-9]{6}\.[A-Za-z0-9_-]{8,})/g;
+  let m; while ((m = re.exec(text))) out.add(m[1]);
+  return [...out];
+}
+
+/* merge incoming board into local. returns number of changed words */
+function merge(inc){
+  let cur = store.get('room:' + inc.r);
+  if (!cur) cur = { r: inc.r, n: inc.n, w: {}, me: null, outs: {} };
+  if (!cur.n || !cur.n.length) cur.n = inc.n;
+  let changed = 0;
+  for (const [i, v] of Object.entries(inc.w)) {
+    const mine = cur.w[i];
+    if (!mine || v.t > mine.t) { cur.w[i] = v; changed++; }
+  }
+  S = cur; save();
+  return changed;
+}
+
+/* ---------- utils ---------- */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function rid(){ const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const b = crypto.getRandomValues(new Uint8Array(6)); return [...b].map(x => a[x % a.length]).join(''); }
+let toastT;
+function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), 2200); }
+async function copyText(t){
+  try { await navigator.clipboard.writeText(t); return true; }
+  catch {
+    const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch {} ta.remove(); return ok;
+  }
+}
+function openSheet(html, onMount){
+  sheetBody.innerHTML = html; sheet.classList.add('open'); scrim.classList.add('open');
+  if (onMount) onMount(sheetBody);
+}
+function closeSheet(){ sheet.classList.remove('open'); scrim.classList.remove('open'); }
+scrim.addEventListener('click', closeSheet);
+
+const setCount = () => S.n.filter((_, i) => S.w[i]).length;
+
+/* ---------- share ---------- */
+async function share(){
+  const url = linkFor(S);
+  const who = S.me != null ? S.n[S.me] : '';
+  const text = `금지어 게임 단어판 ${setCount()}/${S.n.length}${who ? ` (${who} 업데이트)` : ''}\n링크를 누르면 내 휴대폰에 단어가 합쳐져요.`;
+  if (navigator.share && /^https?:/.test(location.protocol)) {
+    try { await navigator.share({ title: '금지어 게임', text, url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  const ok = await copyText(text + '\n' + url);
+  toast(ok ? '링크를 복사했어요. 단톡방에 붙여 넣어 주세요' : '복사가 막혔어요. 링크를 길게 눌러 복사해 주세요');
+}
+
+/* ---------- screens ---------- */
+function render(){
+  if (!S) return renderHome();
+  if (S.me == null) return renderPick();
+  renderBoard();
+}
+
+function renderHome(){
+  let count = 6;
+  const draw = () => {
+    const prev = [...app.querySelectorAll('.names input')].map(i => i.value);
+    app.innerHTML = `
+      <header class="mt4">
+        <p class="t-cap">포스트잇 없이 하는</p>
+        <h1 class="t-large mt2">금지어 게임</h1>
+        <p class="t-sub mt3">내 금지어는 내 화면에서만 가려지고<br>다른 사람 화면에는 크게 보여요.</p>
+      </header>
+      <section class="card mt8">
+        <div class="row between">
+          <h2 class="t-title3">참가자</h2>
+          <div class="row">
+            <button class="btn-icon btn" id="minus" aria-label="한 명 빼기">${ICON.minus}</button>
+            <span class="out-n t-title3" aria-live="polite">${count}</span>
+            <button class="btn-icon btn" id="plus" aria-label="한 명 더하기">${ICON.plus}</button>
+          </div>
+        </div>
+        <div class="names mt4">
+          ${Array.from({ length: count }, (_, i) => `<input class="field" maxlength="8" placeholder="이름 ${i + 1}" value="${esc(prev[i] || '')}" aria-label="참가자 ${i + 1} 이름">`).join('')}
+        </div>
+        <button class="btn btn-primary block mt4" id="create">게임 시작</button>
+      </section>
+      <section class="card mt3">
+        <h2 class="t-title3">받은 링크로 참가</h2>
+        <p class="t-foot mt2">단톡방에서 받은 링크를 누르면 바로 들어와요.<br>앱에서 안 열리면 링크를 복사해 넣어 주세요.</p>
+        <button class="btn btn-ghost block mt4" id="join">${ICON.paste}링크 붙여 넣기</button>
+      </section>
+      <section class="mt8">
+        <h2 class="t-title3">진행 순서</h2>
+        <ol class="steps mt4 t-callout">
+          <li><span>한 사람이 이름을 넣고 게임 시작을 눌러<br>나온 링크를 단톡방에 올려요.</span></li>
+          <li><span>각자 링크를 열고 내 이름을 골라요.<br>이때부터 내 금지어는 안 보여요.</span></li>
+          <li><span>내 담당인 다음 사람 금지어를 넣고<br>단어 공유로 단톡방에 올려요.</span></li>
+          <li><span>남이 올린 링크를 하나씩 누르면<br>단어판이 내 휴대폰에 합쳐져요.</span></li>
+        </ol>
+      </section>`;
+    app.querySelector('#minus').onclick = () => { if (count > 3) { count--; draw(); } };
+    app.querySelector('#plus').onclick = () => { if (count < 10) { count++; draw(); } };
+    app.querySelector('#create').onclick = () => {
+      const names = [...app.querySelectorAll('.names input')].map((i, k) => i.value.trim() || `이름 ${k + 1}`);
+      if (new Set(names).size !== names.length) return toast('이름이 겹쳐요. 다르게 넣어 주세요');
+      S = { r: rid(), n: names, w: {}, me: null, outs: {} };
+      save(); render();
+      setTimeout(() => openSheet(`
+        <h2 class="t-title2">단톡방에 링크 올리기</h2>
+        <p class="t-sub mt3">모두 이 링크로 들어와야 같은 게임이 돼요.<br>올린 다음 내 이름을 골라 주세요.</p>
+        <button class="btn btn-primary block mt6" id="s1">${ICON.share}게임 링크 공유</button>
+        <button class="btn btn-text block mt2" id="s2">나중에</button>`, b => {
+          b.querySelector('#s1').onclick = async () => { await share(); closeSheet(); };
+          b.querySelector('#s2').onclick = closeSheet;
+        }), 50);
+    };
+    app.querySelector('#join').onclick = openPaste;
+  };
+  draw();
+}
+
+function renderPick(){
+  app.innerHTML = `
+    <header class="mt4">
+      <p class="t-cap">게임 ${esc(S.r)}</p>
+      <h1 class="t-large mt2">나는 누구?</h1>
+      <p class="t-sub mt3">내 이름을 고르면 내 금지어는<br>이 휴대폰에서 끝까지 가려져요.</p>
+    </header>
+    <div class="pick mt8">
+      ${S.n.map((nm, i) => `<button class="btn btn-ghost block" data-i="${i}">${esc(nm)}</button>`).join('')}
+    </div>
+    <button class="btn btn-text block mt6" id="home">다른 게임 시작</button>`;
+  app.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i;
+    openSheet(`
+      <h2 class="t-title2">${esc(S.n[i])} 님 맞나요?</h2>
+      <p class="t-sub mt3">다른 사람 이름을 고르면<br>내 금지어가 보일 수 있어요.</p>
+      <button class="btn btn-primary block mt6" id="ok">네, ${esc(S.n[i])}예요</button>
+      <button class="btn btn-text block mt2" id="no">다시 선택</button>`, bd => {
+        bd.querySelector('#ok').onclick = () => { S.me = i; save(); closeSheet(); render(); };
+        bd.querySelector('#no').onclick = closeSheet;
+      });
+  });
+  app.querySelector('#home').onclick = newGame;
+}
+
+function renderBoard(){
+  const n = S.n.length, me = S.me, mine = (me + 1) % n;
+  const total = setCount();
+  const others = S.n.map((_, i) => i).filter(i => i !== me);
+  // 내 담당을 맨 위로
+  others.sort((a, b) => (a === mine ? -1 : b === mine ? 1 : ((a - me + n) % n) - ((b - me + n) % n)));
+  const cardOf = i => {
+    const v = S.w[i]; const o = S.outs[i] || 0;
+    return `
+      <article class="card">
+        <div class="row between">
+          <div class="row"><span class="name">${esc(S.n[i])}</span>${i === mine ? '<span class="pill on">내 담당</span>' : ''}</div>
+          <div class="row">
+            <button class="btn-icon btn" data-out-minus="${i}" aria-label="${esc(S.n[i])} 걸림 하나 빼기">${ICON.minus}</button>
+            <button class="btn btn-ghost btn-sm" data-out="${i}" aria-label="${esc(S.n[i])} 걸림 더하기">걸림 <span class="out-n">${o}</span></button>
+          </div>
+        </div>
+        ${v
+          ? `<p class="word mt3">${esc(v.w)}</p>
+             <div class="row between mt3"><span class="t-cap">${v.b != null && S.n[v.b] ? esc(S.n[v.b]) + ' 님이 정함' : ''}</span>
+             <button class="btn btn-text" data-edit="${i}">${ICON.pen}바꾸기</button></div>`
+          : `<p class="empty-word mt3">아직 비어 있어요</p>
+             <button class="btn ${i === mine ? 'btn-primary' : 'btn-ghost'} block mt4" data-edit="${i}">${ICON.pen}금지어 넣기</button>`}
+      </article>`;
+  };
+  const myV = S.w[me];
+  app.innerHTML = `
+    <header class="row between">
+      <div>
+        <p class="t-cap">게임 ${esc(S.r)}</p>
+        <h1 class="t-title2 mt2">금지어 ${total}/${n}</h1>
+      </div>
+      <button class="btn-icon btn" id="menu" aria-label="메뉴">${ICON.more}</button>
+    </header>
+    <article class="card me mt6">
+      <div class="row between"><span class="name">${esc(S.n[me])} (나)</span><span class="pill${myV ? ' on' : ''}">${myV ? '정해짐' : '기다리는 중'}</span></div>
+      <div class="hidden-word mt3">${ICON.eyeOff}<p class="word">비밀</p></div>
+      <p class="t-foot mt3">${myV ? '내 금지어는 다른 사람 화면에만 보여요.' : '누가 내 금지어를 넣으면 단어판이 바뀌어요.'}</p>
+    </article>
+    <div class="grid mt3">${others.map(cardOf).join('')}</div>
+    <p class="t-cap mt6">걸림 횟수는 이 휴대폰에만 기록돼요.</p>
+    <nav class="bar"><div class="bar-in">
+      <button class="btn btn-ghost" id="paste">${ICON.inbox}받은 링크</button>
+      <button class="btn btn-primary" id="share">${ICON.share}단어 공유</button>
+    </div></nav>`;
+  app.querySelector('#share').onclick = share;
+  app.querySelector('#paste').onclick = openPaste;
+  app.querySelector('#menu').onclick = openMenu;
+  app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openEdit(+b.dataset.edit));
+  app.querySelectorAll('[data-out]').forEach(b => b.onclick = () => { const i = +b.dataset.out; S.outs[i] = (S.outs[i] || 0) + 1; save(); renderBoard(); });
+  app.querySelectorAll('[data-out-minus]').forEach(b => b.onclick = () => { const i = +b.dataset.outMinus; S.outs[i] = Math.max(0, (S.outs[i] || 0) - 1); save(); renderBoard(); });
+}
+
+function openEdit(i){
+  if (i === S.me) return; // 내 단어는 절대 열지 않음
+  const v = S.w[i];
+  openSheet(`
+    <h2 class="t-title2">${esc(S.n[i])} 님 금지어</h2>
+    <p class="t-sub mt3">${esc(S.n[i])} 님 화면에서만 가려져요.</p>
+    <input class="field mt6" id="w" maxlength="20" placeholder="금지어 입력" value="${v ? esc(v.w) : ''}" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button class="btn btn-primary block mt4" id="save">저장</button>
+    <button class="btn btn-text block mt2" id="cancel">취소</button>`, b => {
+      const inp = b.querySelector('#w');
+      setTimeout(() => inp.focus(), 260);
+      const commit = () => {
+        const w = inp.value.trim();
+        if (!w) return toast('금지어를 넣어 주세요');
+        S.w[i] = { w, b: S.me, t: Date.now() }; save(); closeSheet(); renderBoard();
+        setTimeout(() => openSheet(`
+          <h2 class="t-title2">단톡방에 공유</h2>
+          <p class="t-sub mt3">공유해야 다른 사람 휴대폰에도<br>${esc(S.n[i])} 님 금지어가 보여요.</p>
+          <button class="btn btn-primary block mt6" id="sh">${ICON.share}단어 공유</button>
+          <button class="btn btn-text block mt2" id="later">나중에</button>`, bb => {
+            bb.querySelector('#sh').onclick = async () => { await share(); closeSheet(); };
+            bb.querySelector('#later').onclick = closeSheet;
+          }), 260);
+      };
+      b.querySelector('#save').onclick = commit;
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') commit(); });
+      b.querySelector('#cancel').onclick = closeSheet;
+    });
+}
+
+function openPaste(){
+  openSheet(`
+    <h2 class="t-title2">받은 링크 넣기</h2>
+    <p class="t-sub mt3">단톡방 링크를 여러 개 한꺼번에 붙여도 돼요.<br>최신 단어만 골라 합쳐요.</p>
+    <textarea class="field mt6" id="txt" placeholder="여기에 붙여 넣기"></textarea>
+    <div class="row mt4">
+      <button class="btn btn-ghost" id="clip" style="flex:1">${ICON.paste}붙여 넣기</button>
+      <button class="btn btn-primary" id="go" style="flex:1">합치기</button>
+    </div>
+    <button class="btn btn-text block mt2" id="cancel">닫기</button>`, b => {
+      const ta = b.querySelector('#txt');
+      b.querySelector('#clip').onclick = async () => {
+        try { ta.value = await navigator.clipboard.readText(); } catch { ta.focus(); toast('입력칸을 길게 눌러 붙여 넣어 주세요'); }
+      };
+      b.querySelector('#go').onclick = () => {
+        const codes = findCodes(ta.value);
+        if (!codes.length) return toast('게임 링크를 찾지 못했어요');
+        const res = applyCodes(codes);
+        closeSheet();
+        if (res.ok) render();
+        toast(res.msg);
+      };
+      b.querySelector('#cancel').onclick = closeSheet;
+    });
+}
+
+function applyCodes(codes){
+  let changed = 0, got = 0, other = false;
+  for (const c of codes) {
+    const inc = decode(c); if (!inc) continue;
+    if (S && S.r !== inc.r) { other = true; }
+    changed += merge(inc); got++;
+  }
+  if (!got) return { ok: false, msg: '링크가 깨져 있어요. 다시 복사해 주세요' };
+  return { ok: true, msg: changed ? `새 단어 ${changed}개를 합쳤어요` : (other ? '게임에 들어왔어요' : '이미 최신 단어판이에요') };
+}
+
+function openMenu(){
+  openSheet(`
+    <h2 class="t-title2">메뉴</h2>
+    <button class="btn btn-ghost block mt6" id="reveal">게임 끝, 내 금지어 확인</button>
+    <button class="btn btn-ghost block mt2" id="link">게임 링크 다시 공유</button>
+    <button class="btn btn-ghost block mt2" id="who">내 이름 다시 선택</button>
+    <button class="btn btn-ghost block mt2" id="new">새 게임 시작</button>
+    <button class="btn btn-text block mt2" id="close">닫기</button>`, b => {
+      b.querySelector('#close').onclick = closeSheet;
+      b.querySelector('#link').onclick = async () => { await share(); closeSheet(); };
+      b.querySelector('#who').onclick = () => confirmSheet('이름을 다시 고를까요?', '다른 이름을 고르면 그 사람 금지어는 가려지고<br>지금 내 금지어가 보이게 돼요.', '다시 선택', () => { S.me = null; save(); render(); });
+      b.querySelector('#new').onclick = () => confirmSheet('새 게임을 시작할까요?', '이 휴대폰의 지금 단어판은 지워져요.', '새 게임', newGame);
+      b.querySelector('#reveal').onclick = () => confirmSheet('게임이 끝났나요?', '확인을 누르면 내 금지어가 이 화면에 나와요.', '내 금지어 확인', () => {
+        const v = S.w[S.me];
+        setTimeout(() => openSheet(`
+          <div class="reveal"><p class="t-foot" style="color:inherit;opacity:.6">${esc(S.n[S.me])} 님 금지어</p><p class="word mt3">${v ? esc(v.w) : '아직 비어 있어요'}</p>${v && v.b != null && S.n[v.b] ? `<p class="t-foot mt3" style="color:inherit;opacity:.6">${esc(S.n[v.b])} 님이 정함</p>` : ''}</div>
+          <button class="btn btn-ghost block mt4" id="c">닫기</button>`, bb => { bb.querySelector('#c').onclick = closeSheet; }), 260);
+      });
+    });
+}
+
+function confirmSheet(title, body, okLabel, onOk){
+  closeSheet();
+  setTimeout(() => openSheet(`
+    <h2 class="t-title2">${title}</h2>
+    <p class="t-sub mt3">${body}</p>
+    <button class="btn btn-primary block mt6" id="ok">${okLabel}</button>
+    <button class="btn btn-text block mt2" id="no">취소</button>`, b => {
+      b.querySelector('#ok').onclick = () => { closeSheet(); onOk(); };
+      b.querySelector('#no').onclick = closeSheet;
+    }), 260);
+}
+
+function newGame(){
+  if (S) store.del('room:' + S.r);
+  store.del('last'); S = null; closeSheet(); render(); scrollTo(0, 0);
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  closeSheet();
+  const m = location.hash.match(/g=([A-Za-z0-9]{6}\.[A-Za-z0-9_-]+)/);
+  if (m) {
+    const res = applyCodes([m[1]]);
+    history.replaceState(null, '', location.pathname + location.search); // 주소창에서 코드 지움
+    if (res.ok) { render(); if (S.me != null) toast(res.msg); return; }
+    toast(res.msg);
+  }
+  const last = store.get('last');
+  if (last) S = store.get('room:' + last);
+  render();
+}
+window.addEventListener('hashchange', boot);
+boot();
+})();
+</script>
+</body>
+</html>
